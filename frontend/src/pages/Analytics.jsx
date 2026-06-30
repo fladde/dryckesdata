@@ -1,19 +1,21 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
 const API = "https://web-production-c4a6cc.up.railway.app"
-const COLORS = ["#e8c97e", "#7eb8e8", "#7ee8a2", "#e87e7e", "#c97ee8", "#7ee8e8"]
+const COLORS = ["#d4a857", "#6f9ed1", "#7fb89a", "#d98a8a", "#a888c9", "#e0b768"]
 
 export default function Analytics() {
   const [salesByYear, setSalesByYear] = useState([])
-  const [categoryTrends, setCategoryTrends] = useState([])
+  const [categoryTrends, setCategoryTrends] = useState({ data: [], cats: [] })
   const [topCountries, setTopCountries] = useState([])
   const [organicTrend, setOrganicTrend] = useState([])
   const [priceByCategory, setPriceByCategory] = useState([])
+  const [categoryShare, setCategoryShare] = useState([])
 
   useEffect(() => {
     axios.get(`${API}/analytics/sales-by-year`).then(r => setSalesByYear(r.data))
+
     axios.get(`${API}/analytics/category-trends`).then(r => {
       const years = [...new Set(r.data.map(d => d.year))]
       const cats = [...new Set(r.data.map(d => d.varugrupp))]
@@ -26,7 +28,13 @@ export default function Analytics() {
         return row
       })
       setCategoryTrends({ data: pivoted, cats })
+
+      // pie: latest year share by category
+      const latestYear = Math.max(...years)
+      const latest = r.data.filter(d => d.year === latestYear)
+      setCategoryShare(latest.map(d => ({ name: d.varugrupp, value: Math.round(d.total_liter / 1_000_000) })))
     })
+
     axios.get(`${API}/analytics/top-countries`).then(r => setTopCountries(r.data))
     axios.get(`${API}/analytics/organic-trend`).then(r => {
       setOrganicTrend(r.data.map(d => ({
@@ -37,81 +45,85 @@ export default function Analytics() {
     axios.get(`${API}/analytics/price-by-category`).then(r => setPriceByCategory(r.data))
   }, [])
 
-  const cardStyle = { background: "#fff", borderRadius: "10px", padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }
-  const titleStyle = { fontWeight: "700", fontSize: "15px", marginBottom: "20px", color: "#1a1a2e" }
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+    <div className="analytics-grid">
 
-      {/* Total sales by year */}
-      <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
-        <p style={titleStyle}>Total Sales Volume by Year (million litres)</p>
+      <div className="card full">
+        <p className="chart-card-title">Total sales volume by year (million litres)</p>
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={salesByYear.map(d => ({ ...d, total_liter: Math.round(d.total_liter / 1_000_000) }))}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="year" />
-            <YAxis />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ece6e8" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} />
             <Tooltip formatter={v => `${v}M L`} />
-            <Area type="monotone" dataKey="total_liter" stroke="#e8c97e" fill="#fff8ec" strokeWidth={2} name="Million litres" />
+            <Area type="monotone" dataKey="total_liter" stroke="#d4a857" fill="#f3e4c5" strokeWidth={2} name="Million litres" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Category trends */}
-      <div style={cardStyle}>
-        <p style={titleStyle}>Sales by Category Over Time (million litres)</p>
+      <div className="card">
+        <p className="chart-card-title">Sales by category over time (million litres)</p>
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={categoryTrends.data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="year" />
-            <YAxis />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ece6e8" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
-            {categoryTrends.cats?.map((cat, i) => (
+            {categoryTrends.cats.map((cat, i) => (
               <Area key={cat} type="monotone" dataKey={cat} stackId="1" stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.6} />
             ))}
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Top countries */}
-      <div style={cardStyle}>
-        <p style={titleStyle}>Top 10 Countries by Sales Volume</p>
+      <div className="card">
+        <p className="chart-card-title">Category share, latest year</p>
+        <ResponsiveContainer width="100%" height={280}>
+          <PieChart>
+            <Pie data={categoryShare} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95} label={({ name }) => name}>
+              {categoryShare.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            </Pie>
+            <Tooltip formatter={v => `${v}M L`} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="card">
+        <p className="chart-card-title">Top 10 countries by sales volume</p>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={topCountries.map(d => ({ ...d, total_liter: Math.round(d.total_liter / 1_000_000) }))} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis type="number" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ece6e8" />
+            <XAxis type="number" tick={{ fontSize: 12 }} />
             <YAxis dataKey="land" type="category" width={90} tick={{ fontSize: 12 }} />
             <Tooltip formatter={v => `${v}M L`} />
-            <Bar dataKey="total_liter" fill="#7eb8e8" name="Million litres" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="total_liter" fill="#6f9ed1" name="Million litres" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Organic trend */}
-      <div style={cardStyle}>
-        <p style={titleStyle}>Organic Products — Share of Total Sales (%)</p>
+      <div className="card">
+        <p className="chart-card-title">Organic products — share of total sales (%)</p>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={organicTrend}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="year" />
-            <YAxis unit="%" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ece6e8" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <YAxis unit="%" tick={{ fontSize: 12 }} />
             <Tooltip formatter={v => `${v}%`} />
-            <Line type="monotone" dataKey="organic_pct" stroke="#7ee8a2" strokeWidth={2} dot={{ r: 4 }} name="Organic %" />
+            <Line type="monotone" dataKey="organic_pct" stroke="#7fb89a" strokeWidth={2} dot={{ r: 4 }} name="Organic %" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Price by category */}
-      <div style={cardStyle}>
-        <p style={titleStyle}>Average Price by Category (SEK)</p>
+      <div className="card full">
+        <p className="chart-card-title">Average price by category (SEK)</p>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={priceByCategory}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ece6e8" />
             <XAxis dataKey="varugrupp" tick={{ fontSize: 11 }} />
-            <YAxis />
+            <YAxis tick={{ fontSize: 12 }} />
             <Tooltip formatter={v => `${v} kr`} />
-            <Bar dataKey="avg_price" fill="#c97ee8" name="Avg price" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="avg_price" fill="#a888c9" name="Avg price" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
