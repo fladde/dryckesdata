@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
-const API = "http://127.0.0.1:8000"
+const API = "https://web-production-c4a6cc.up.railway.app"
 const COLORS = ["#e8c97e", "#7eb8e8", "#7ee8a2", "#e87e7e", "#c97ee8", "#7ee8e8"]
 
 export default function Analytics() {
